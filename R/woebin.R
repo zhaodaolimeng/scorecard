@@ -300,7 +300,7 @@ woebin2_init_bin = function(dtm, init_count_distr, breaks, spl_val) {
 
 
 # required in woebin2_tree # add 1 best break for tree-like binning
-woebin2_tree_add_1brkp = function(dtm, initial_binning, count_distr_limit, bestbreaks=NULL) {
+woebin2_tree_add_1brkp = function(dtm, initial_binning, count_distr_limit, bestbreaks=NULL, mono=FALSE) {
   # global variables or functions
   brkp = patterns = . = neg = pos = variable = count_distr = value = min_count_distr = bstbin = min_count_distr = total_iv = bstbin = brkp = bin = NULL
 
@@ -331,6 +331,31 @@ woebin2_tree_add_1brkp = function(dtm, initial_binning, count_distr_limit, bestb
     ][, .(total_iv = iv_01(neg, pos), variable = unique(variable), min_count_distr = min(min_count_distr,na.rm=TRUE)), by=bstbin
     ][, bstbin := as.numeric(sub("bstbin(.+)", "\\1", bstbin))][]
 
+    total_iv_all_brks <- melt(
+      init_bin_all_breaks, id = c("variable", "neg", "pos")
+      ,variable.name = "bstbin", measure = patterns("bstbin.+")
+    )[, .(neg = sum(neg), pos = sum(pos), variable = unique(variable))
+    , by=.(bstbin, value)
+    ][, count_distr := (neg+pos)/dtm_rows, by=bstbin][]
+    
+    if(mono) {
+      total_iv_all_brks <- total_iv_all_brks[
+        ,odds_smooth:=(pos+1)/(neg+1)
+      ][!is.na(value),min_count_distr:=min(count_distr),by=bstbin
+      ][,.(total_iv = iv_01(neg, pos)
+        ,variable = unique(variable)
+        ,flag = fifelse(all(diff(odds_smooth) < 0),-1,fifelse(all(diff(odds_smooth)>0),1,0))
+        ,min_count_distr = min(min_count_distr,na.rm=TRUE)), by=bstbin
+      ][, bstbin := as.numeric(sub("bstbin(.+)", "\\1", bstbin))][flag %in% c(1,-1),][]
+    } else {
+      total_iv_all_brks <- total_iv_all_brks[
+        !is.na(value), min_count_distr := min(count_distr), by=bstbin
+      ][, .(total_iv = iv_01(neg, pos)
+        ,variable = unique(variable)
+        ,min_count_distr = min(min_count_distr,na.rm=TRUE)), by=bstbin
+      ][, bstbin := as.numeric(sub("bstbin(.+)", "\\1", bstbin))][]
+    }
+    
     return(total_iv_all_brks)
   }
   # binning add 1best break
@@ -384,7 +409,8 @@ woebin2_tree = function(
   stop_limit        = 0.1,
   bin_num_limit     = 8,
   breaks            = NULL,
-  spl_val           = NULL
+  spl_val           = NULL,
+  mono              = FALSE
 ) {
   # global variables or functions
   brkp = bstbrkp = total_iv = count = neg = pos =  NULL
@@ -409,7 +435,7 @@ woebin2_tree = function(
   # best breaks from three to n+1 bins
   binning_tree = NULL
   while ( (IVchg >= stop_limit) & (step_num+1 <= min(bin_num_limit, len_brks)) ) {
-    binning_tree = woebin2_tree_add_1brkp(dtm, copy(initial_binning), count_distr_limit, bestbreaks)
+    binning_tree = woebin2_tree_add_1brkp(dtm, copy(initial_binning), count_distr_limit, bestbreaks, mono=mono)
     # print(binning_tree)
 
     # update parameters
@@ -636,7 +662,8 @@ woebin2 = function(
   count_distr_limit = 0.05,
   stop_limit        = 0.1,
   bin_num_limit     = 8,
-  method            = "tree"
+  method            = "tree",
+  mono              = FALSE
 ) {
   # global variables or functions
   . = pos = posprob = bin = bin_iv = neg = total_iv = variable = woe = is_sv = NULL
@@ -655,7 +682,7 @@ woebin2 = function(
     } else {
       if (method == "tree") {
         # 2.tree-like optimal binning
-        bin_list = woebin2_tree(dtm, init_count_distr, count_distr_limit, stop_limit, bin_num_limit, breaks=breaks, spl_val=spl_val)
+        bin_list = woebin2_tree(dtm, init_count_distr, count_distr_limit, stop_limit, bin_num_limit, breaks=breaks, spl_val=spl_val, mono=mono)
 
       } else if (method == "chimerge") {
         # 2.chimerge optimal binning
