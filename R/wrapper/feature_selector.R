@@ -97,6 +97,68 @@ corr_feature_selector <- function(df,feat,threshold=0.6){
 }
 
 
+# TESTME 
+# search optimal feature set to keep with no corr higher than threshold
+corr_feature_selector.opt <- function(df,feat,threshold=0.6){
+  mat.corr <- cor(df %>% select(all_of(feat)),use = "na.or.complete") %>% as.matrix()
+  cor.pair <- list()
+  for(i in 1:(nrow(mat.corr))){
+  	for(j in 1:nrow(mat.corr)){
+  		if(abs(mat.corr[i,j]) > threshold && i!=j)
+  			cor.pair[[i]] <- ifelse(i %in% names(cor.pair),c(cor.pair[[i]],j),j)
+  	}
+  }
+  state <- c(rep(-1,length(cor.pair)))  # 0=no,1=yes
+  search <- function(vert,choice){
+    if(choice == 0){
+      state[vert] <- 0
+      for(v in cor.pair[vert]){
+        if(state[v] == -1){
+          # if any 1 is adjacent to v
+          adj.1 <- F
+          for( w in cor.pair[v]){
+            if(w != vert && state[w] == 1)
+              adj.1 <- T
+          }
+          if(!adj.1) search(v,0)
+          else {
+            search(v,0)
+            search(v,1)
+          }
+        }
+      }
+    } else {
+      state[vert] <- 1
+      for(v in cor.pair[vert]){
+        if(state[v] == -1){
+          search(v,0)
+        }
+      } 
+    }
+    cnt.vis <- 0
+    for(i in state){
+      if(state[i] == 0) cnt.vis <- cnt.vis + 1
+    }
+    if(cnt.vis == length(cor.pair) & cnt < cnt.min){
+      cnt.min <- cnt
+      state.min <- state
+    }
+    state[vert] <- -1
+  }
+  cnt.min <- Inf
+  search(1,1)
+  cnt.min.yes <- cnt.min
+  state.min.yes <- state.min
+  state.min <- NULL
+  cnt.min <- Inf
+  search(1,0)
+  feat.rm <- data.frame(key = feat, 
+                        hit = ifelse(state.min<state.min.yes,state.min,state.min.yes)) %>% 
+    filter(hit == 1) %>% pull(key)
+  return(setdiff(feat, feat.rm))
+}
+
+
 pval_feature_selector <- function(df,feat,flag,threshold=0.001,feat_only=T){
   feat.orgin <- feat
   while(length(feat) > 0){
@@ -116,3 +178,12 @@ pval_feature_selector <- function(df,feat,flag,threshold=0.001,feat_only=T){
       tibble::rownames_to_column("var"),feat=feat)
   else NULL
 }
+
+
+## TODO check features against following properties
+# 1. gvif
+# 2. p-value
+# 3. iv
+# 4. psi
+# 5. lasso importance
+# 6. feature AIC
