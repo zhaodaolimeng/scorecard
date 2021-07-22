@@ -862,7 +862,8 @@ woebin = function(
   dt, y, x=NULL, var_skip=NULL, breaks_list=NULL, special_values=NULL,
   stop_limit=0.1, count_distr_limit=0.05, bin_num_limit=8,
   positive="bad|1", no_cores=NULL, print_step=0L, method="tree", save_breaks_list=NULL,
-  ignore_const_cols=TRUE, ignore_datetime_cols=TRUE, check_cate_num=TRUE, replace_blank_inf=TRUE, ...) {
+  ignore_const_cols=TRUE, ignore_datetime_cols=TRUE,
+  check_cate_num=TRUE, replace_blank_inf=TRUE, mono=FALSE ...) {
   # start time
   start_time = proc.time()
 
@@ -974,7 +975,8 @@ woebin = function(
           count_distr_limit= count_distr_limit,
           stop_limit       = stop_limit[[x_i]],
           bin_num_limit    = bin_num_limit,
-          method           = method
+          method           = method,
+          mono             = mono
         )), silent = TRUE)
     }
 
@@ -1009,7 +1011,8 @@ woebin = function(
           count_distr_limit= count_distr_limit,
           stop_limit       = stop_limit[[x_i]],
           bin_num_limit    = bin_num_limit,
-          method           = method
+          method           = method,
+          mono             = mono
         )), silent = TRUE)
       }
     # finish
