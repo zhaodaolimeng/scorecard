@@ -18,10 +18,10 @@ lasso_feature_selector <- function(df,feat,flag,feat_only=T,max.feat.num=30) {
 }
 
 
-stepwise_feature_selector <- function(df,feat,flag){
+stepwise_feature_selector <- function(df,feat,flag,trace=0){
   f <- as.formula(paste(flag, " ~ ", paste0(feat, collapse = " + ")))
   m <- glm(f,family='binomial',data=df)
-  result.stepaic <- step(m,direction="both",trace = 1)
+  result.stepaic <- step(m,direction="both",trace = trace)
   result.stepaic$coefficients %>% names() %>% `[`(2:length(.)) %>% return()
 }
 
